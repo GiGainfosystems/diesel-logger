@@ -1,17 +1,56 @@
+//! Currently this carte, with the given dependencies only supports postgres.
+//! Given a small patch to `diesel_oci` it can likewise support oracle. However as of now,
+//! The oracle mod will not compile.
+#[cfg(feature = "oracle")]
+pub mod oci;
+#[cfg(feature = "postgres")]
+pub mod postgres;
+
+extern crate chrono;
 extern crate diesel;
 #[macro_use]
 extern crate log;
+#[cfg(feature = "oracle")]
+extern crate diesel_oci;
 
-use std::ops::Deref;
-use std::time::{Duration, Instant};
-
-use diesel::backend::{Backend, UsesAnsiSavepointSyntax};
-use diesel::connection::{AnsiTransactionManager, SimpleConnection};
-use diesel::debug_query;
-use diesel::deserialize::QueryableByName;
 use diesel::prelude::*;
-use diesel::query_builder::{AsQuery, QueryFragment, QueryId};
-use diesel::sql_types::HasSqlType;
+use std::time::Duration;
+
+/// A log mode which determines the type of logging connection is established.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum DbLogMode {
+    /// Do not log.
+    NoLog,
+    /// Log in moderation.
+    Standard,
+    /// Log everything if server is run in verbose mode.
+    Verbose,
+    /// Log everything all the time.
+    Excessive,
+    /// Log everything all the time, but shorten the records so we print only the start of a query.
+    ExcessiveMini,
+}
+
+impl DbLogMode {
+    pub fn from_env() -> Self {
+        if let Ok(mode) = ::std::env::var("GST_DATABASE_LOGGING") {
+            let mode = mode.to_lowercase();
+            match mode.as_str() {
+                "standard" => DbLogMode::Standard,
+                "verbose" => DbLogMode::Verbose,
+                "excessive" => DbLogMode::Excessive,
+                "excessive-mini" => DbLogMode::ExcessiveMini,
+                _ => DbLogMode::NoLog,
+            }
+        } else {
+            DbLogMode::NoLog
+        }
+    }
+
+    pub fn do_not_log(self) -> bool {
+        self == DbLogMode::NoLog
+    }
+}
 
 /// Wraps a diesel `Connection` to time and log each query using
 /// the configured logger for the `log` crate.
@@ -20,112 +59,78 @@ use diesel::sql_types::HasSqlType;
 /// an `info` on queries that take longer than 1 second,
 /// and a `warn`ing on queries that take longer than 5 seconds.
 /// These thresholds will be configurable in a future version.
-pub struct LoggingConnection<C: Connection>(C);
-
-impl<C: Connection> LoggingConnection<C> {
-    pub fn new(conn: C) -> Self {
-        LoggingConnection(conn)
-    }
+pub struct LoggingConnection<C: Connection> {
+    pub conn: C,
+    pub log_mode: DbLogMode,
 }
 
-impl<C: Connection> Deref for LoggingConnection<C> {
-    type Target = C;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+/// This function now takes a `chrono::DateTime` for logging in `ExcessiveMode`, which uses `println`
+/// and can be accomplished even when general `gst-server` logging is disabled.
+/// Also the `DbLogMode` determines the type of logging.
+fn log_query(
+    query: &str,
+    duration: Duration,
+    start_time: chrono::DateTime<chrono::Utc>,
+    db_log_mode: DbLogMode,
+) {
+    // SAN check.
+    debug_assert!(!db_log_mode.do_not_log());
 
-impl<C> SimpleConnection for LoggingConnection<C>
-where
-    C: Connection + Send + 'static,
-{
-    fn batch_execute(&self, query: &str) -> QueryResult<()> {
-        self.0.batch_execute(query)
-    }
-}
-
-impl<C: Connection> Connection for LoggingConnection<C>
-where
-    C: Connection<TransactionManager = AnsiTransactionManager> + Send + 'static,
-    C::Backend: UsesAnsiSavepointSyntax,
-    <C::Backend as Backend>::QueryBuilder: Default,
-{
-    type Backend = C::Backend;
-    type TransactionManager = C::TransactionManager;
-
-    fn establish(database_url: &str) -> ConnectionResult<Self> {
-        Ok(LoggingConnection(C::establish(database_url)?))
-    }
-
-    fn execute(&self, query: &str) -> QueryResult<usize> {
-        let start_time = Instant::now();
-        let result = self.0.execute(query);
-        let duration = start_time.elapsed();
-        log_query(query, duration);
-        result
-    }
-
-    fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
-    where
-        T: AsQuery,
-        T::Query: QueryFragment<Self::Backend> + QueryId,
-        Self::Backend: HasSqlType<T::SqlType>,
-        U: Queryable<T::SqlType, Self::Backend>,
-    {
-        let query = source.as_query();
-        let debug_query = debug_query::<Self::Backend, _>(&query).to_string();
-        let start_time = Instant::now();
-        let result = self.0.query_by_index(query);
-        let duration = start_time.elapsed();
-        log_query(&debug_query, duration);
-        result
-    }
-
-    fn query_by_name<T, U>(&self, source: &T) -> QueryResult<Vec<U>>
-    where
-        T: QueryFragment<Self::Backend> + QueryId,
-        U: QueryableByName<Self::Backend>,
-    {
-        let debug_query = debug_query::<Self::Backend, _>(&source).to_string();
-        let start_time = Instant::now();
-        let result = self.0.query_by_name(source);
-        let duration = start_time.elapsed();
-        log_query(&debug_query, duration);
-        result
-    }
-
-    fn execute_returning_count<T>(&self, source: &T) -> QueryResult<usize>
-    where
-        T: QueryFragment<Self::Backend> + QueryId,
-    {
-        let debug_query = debug_query::<Self::Backend, _>(&source).to_string();
-        let start_time = Instant::now();
-        let result = self.0.execute_returning_count(source);
-        let duration = start_time.elapsed();
-        log_query(&debug_query, duration);
-        result
-    }
-
-    fn transaction_manager(&self) -> &Self::TransactionManager {
-        self.0.transaction_manager()
-    }
-}
-
-fn log_query(query: &str, duration: Duration) {
-    if duration.as_secs() >= 5 {
-        warn!(
-            "Slow query ran in {:.2} seconds: {}",
-            duration_to_secs(duration),
-            query
-        );
-    } else if duration.as_secs() >= 1 {
-        info!(
-            "Slow query ran in {:.2} seconds: {}",
-            duration_to_secs(duration),
-            query
-        );
+    // Make query string.
+    let query = query.chars().collect::<Vec<char>>();
+    let query = if db_log_mode != DbLogMode::ExcessiveMini {
+        query.iter().collect::<String>()
     } else {
-        debug!("Query ran in {:.1} ms: {}", duration_to_ms(duration), query);
+        query.iter().take(40).collect::<String>()
+    };
+
+    match db_log_mode {
+        DbLogMode::Standard => {
+            if duration.as_secs() >= 5 {
+                warn!(
+                    "Slow query ran in {:.2} seconds: {}",
+                    duration_to_secs(duration),
+                    query
+                );
+            } else if duration.as_secs() >= 1 {
+                info!(
+                    "Slow query ran in {:.2} seconds: {}",
+                    duration_to_secs(duration),
+                    query
+                );
+            } else {
+                debug!("Query ran in {:.1} ms: {}", duration_to_ms(duration), query);
+            }
+        }
+        DbLogMode::Verbose => {
+            if duration.as_secs() >= 1 {
+                warn!(
+                    "Slow query ran in {:.2} seconds: {}",
+                    duration_to_secs(duration),
+                    query
+                );
+            } else {
+                warn!("Query ran in {:.1} ms: {}", duration_to_ms(duration), query);
+            }
+        }
+        DbLogMode::Excessive | DbLogMode::ExcessiveMini => {
+            if duration.as_secs() >= 1 {
+                println!(
+                    "[{}]: Slow query ran in {:.2} seconds: {}",
+                    start_time,
+                    duration_to_secs(duration),
+                    query
+                );
+            } else {
+                println!(
+                    "[{}]: Query ran in {:.1} ms: {}",
+                    start_time,
+                    duration_to_ms(duration),
+                    query
+                );
+            }
+        }
+        DbLogMode::NoLog => unreachable!("NoLog mode active. Should not be loggin."),
     }
 }
 

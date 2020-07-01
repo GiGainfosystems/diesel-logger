@@ -1,8 +1,8 @@
 [package]
 name = "diesel_logger"
-version = "0.1.1"
-authors = ["Josh Holmer <jholmer.in@gmail.com>"]
-description = "Times and logs queries executed by diesel"
+version = "0.2.0"
+authors = ["Josh Holmer <jholmer.in@gmail.com>", "Aleksey Zholobenko"]
+description = "Times and logs queries executed by diesel. Adapted for GST."
 exclude = [
     "tests/*",
 ]
@@ -14,5 +14,26 @@ repository = "https://github.com/shssoichiro/diesel-logger"
 maintenance = { status = "as-is" }
 
 [dependencies]
-diesel = "1.0.0"
 log = "0.4.1"
+chrono = "0.4.11"
+
+[dependencies.diesel]
+default-features = false
+features = ["chrono", "serde_json", "r2d2"]
+version = "=1.4.3"
+
+[dependencies.diesel-oci]
+git = "https://github.com/GiGainfosystems/diesel-oci"
+rev = "081d02fa4012b5b594bbe8c83b7dc46e3ad70b45"
+optional=true
+features = ["chrono", "r2d2", "dynamic-schema"]
+
+[features]
+default =["postgres"]
+postgres = ["diesel/postgres"]
+oracle = ["diesel-oci"]
+
+
+[patch.crates-io]
+diesel = { git = "https://github.com/GiGainfosystems/diesel", rev = "bbc1fc40c60555afaaed9b42284dcf141a4dfec4" }
+diesel_derives = { git = "https://github.com/GiGainfosystems/diesel", rev = "bbc1fc40c60555afaaed9b42284dcf141a4dfec4" }
