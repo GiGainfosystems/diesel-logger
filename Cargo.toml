@@ -9,6 +9,7 @@ exclude = [
 homepage = "https://github.com/shssoichiro/diesel-logger"
 license = "MIT"
 repository = "https://github.com/shssoichiro/diesel-logger"
+edition = "2018"
 
 [badges]
 maintenance = { status = "as-is" }
@@ -19,20 +20,8 @@ chrono = "0.4.11"
 
 [dependencies.diesel]
 default-features = false
-features = ["chrono", "serde_json", "r2d2"]
+features = ["r2d2"]
 version = "=1.4.3"
-
-[dependencies.diesel-oci]
-git = "https://github.com/GiGainfosystems/diesel-oci"
-rev = "081d02fa4012b5b594bbe8c83b7dc46e3ad70b45"
-optional=true
-features = ["chrono", "r2d2", "dynamic-schema"]
-
-[features]
-default =["postgres"]
-postgres = ["diesel/postgres"]
-oracle = ["diesel-oci"]
-
 
 [patch.crates-io]
 diesel = { git = "https://github.com/GiGainfosystems/diesel", rev = "bbc1fc40c60555afaaed9b42284dcf141a4dfec4" }
