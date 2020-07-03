@@ -169,7 +169,7 @@ impl Connection for LoggingConnection<OciConnection> {
 
 impl R2D2Connection for LoggingConnection<OciConnection> {
     fn ping(&self) -> QueryResult<()> {
-        self.execute("SELECT 1 FROM DUAL").map(|_| ())
+        self.conn.ping()
     }
 }
 

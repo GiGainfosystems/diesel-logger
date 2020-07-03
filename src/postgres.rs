@@ -137,30 +137,26 @@ where
     }
 }
 
+impl diesel::r2d2::R2D2Connection for LoggingConnection<PgConnection> {
+    fn ping(&self) -> QueryResult<()> {
+        self.conn.ping()
+    }
+}
+
+impl diesel::migration::MigrationConnection for LoggingConnection<PgConnection> {
+    fn setup(&self) -> QueryResult<usize> {
+        self.conn.setup()
+    }
+}
+
 // This section contains the implementations that allow `LoggingConnection` to work with the GST
 // `PoolBuilder`.
-// TODO: Implement the traits to allow us to use `OciConnection` with `LoggingConnection`.
 use diesel::associations::HasTable;
 use diesel::dsl::Update;
 use diesel::query_builder::AsChangeset;
 use diesel::query_builder::IntoUpdateTarget;
 use diesel::query_dsl::{LoadQuery, UpdateAndFetchResults};
 
-#[cfg(feature = "postgres")]
-impl diesel::r2d2::R2D2Connection for LoggingConnection<::diesel::PgConnection> {
-    fn ping(&self) -> QueryResult<()> {
-        self.execute("SELECT 1").map(|_| ())
-    }
-}
-
-#[cfg(feature = "postgres")]
-impl diesel::migration::MigrationConnection for LoggingConnection<::diesel::PgConnection> {
-    fn setup(&self) -> QueryResult<usize> {
-        diesel::sql_query(diesel::migration::CREATE_MIGRATIONS_TABLE).execute(self)
-    }
-}
-
-#[cfg(feature = "postgres")]
 impl<Changes, Output> UpdateAndFetchResults<Changes, Output>
     for LoggingConnection<::diesel::PgConnection>
 where
