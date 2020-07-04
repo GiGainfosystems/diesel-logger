@@ -1,6 +1,6 @@
 [package]
 name = "diesel_logger"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Josh Holmer <jholmer.in@gmail.com>", "Aleksey Zholobenko"]
 description = "Times and logs queries executed by diesel. Adapted for GST."
 exclude = [
