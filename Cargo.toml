@@ -1,7 +1,11 @@
 [package]
 name = "diesel_logger"
 version = "0.3.0"
-authors = ["Josh Holmer <jholmer.in@gmail.com>", "Aleksey Zholobenko"]
+authors = [
+    "Josh Holmer <jholmer.in@gmail.com>",
+    "Aleksey Zholobenko",
+    "Georg Semmler"
+]
 description = "Times and logs queries executed by diesel. Adapted for GST."
 exclude = [
     "tests/*",
@@ -20,9 +24,6 @@ chrono = "0.4.11"
 
 [dependencies.diesel]
 default-features = false
-features = ["r2d2"]
-version = "=1.4.3"
-
-[patch.crates-io]
-diesel = { git = "https://github.com/GiGainfosystems/diesel", rev = "bbc1fc40c60555afaaed9b42284dcf141a4dfec4" }
-diesel_derives = { git = "https://github.com/GiGainfosystems/diesel", rev = "bbc1fc40c60555afaaed9b42284dcf141a4dfec4" }
+features = ["extras"]
+git = "https://github.com/diesel-rs/diesel"
+rev = "fa826f0c97e1f47eef34f37cb5b60056855a2b9a"

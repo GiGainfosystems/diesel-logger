@@ -14,3 +14,8 @@
 ## Version 0.2.1
 - Made the implementations for `R2D2` more correct from a theoretical programming
 point of view.
+
+## Version 0.3.0
+- Uses a generic trait implementations to make the logger universal over all diesel
+connections.
+- Update diesel dependency to use v2.0.0 (currently on https://github.com/diesel-rs/diesel)
