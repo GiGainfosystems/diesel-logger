@@ -25,5 +25,5 @@ chrono = "0.4.11"
 [dependencies.diesel]
 default-features = false
 features = ["extras"]
-git = "https://github.com/GiGainfosystems/diesel"
-rev = "bbc1fc40c60555afaaed9b42284dcf141a4dfec4"
+git = "https://github.com/aleshaleksey/diesel"
+rev = "556488843942485ef5d66618359a81288d790b2c"
