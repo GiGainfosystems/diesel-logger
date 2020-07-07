@@ -18,4 +18,3 @@ point of view.
 ## Version 0.3.0
 - Uses a generic trait implementations to make the logger universal over all diesel
 connections.
-- Update diesel dependency to use v2.0.0 (currently on https://github.com/diesel-rs/diesel)
