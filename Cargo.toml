@@ -24,6 +24,5 @@ chrono = "0.4.11"
 
 [dependencies.diesel]
 default-features = false
-features = ["extras"]
-git = "https://github.com/aleshaleksey/diesel"
-rev = "556488843942485ef5d66618359a81288d790b2c"
+features = ["chrono", "serde_json", "r2d2"]
+version = "=1.4.4"
