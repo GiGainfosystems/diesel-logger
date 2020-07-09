@@ -177,6 +177,10 @@ where
             &*(self.conn.transaction_manager() as *const _ as *const Self::TransactionManager)
         }
     }
+
+    fn begin_test_transaction(&self) -> QueryResult<()> {
+        self.conn.begin_test_transaction()
+    }
 }
 
 #[repr(transparent)]

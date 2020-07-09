@@ -26,3 +26,7 @@ chrono = "0.4.11"
 default-features = false
 features = ["chrono", "serde_json", "r2d2"]
 version = "=1.4.4"
+
+[patch.crates-io]
+diesel = { git = "https://github.com/aleshaleksey/diesel", rev = "d159e5361a2d1227fd60ba3e05227af5e07c679d" }
+diesel_derives = { git = "https://github.com/aleshaleksey/diesel", rev = "d159e5361a2d1227fd60ba3e05227af5e07c679d" }
