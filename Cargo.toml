@@ -28,5 +28,5 @@ features = ["chrono", "serde_json", "r2d2"]
 version = "=1.4.4"
 
 [patch.crates-io]
-diesel = { git = "https://github.com/aleshaleksey/diesel", rev = "d159e5361a2d1227fd60ba3e05227af5e07c679d" }
-diesel_derives = { git = "https://github.com/aleshaleksey/diesel", rev = "d159e5361a2d1227fd60ba3e05227af5e07c679d" }
+diesel = { git = "https://github.com/GiGainfosystems/diesel", rev = "95823085f68d35e16266ef1b15afd6e7ab743b85" }
+diesel_derives = { git = "https://github.com/GiGainfosystems/diesel", rev = "95823085f68d35e16266ef1b15afd6e7ab743b85" }
