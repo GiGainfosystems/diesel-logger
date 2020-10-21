@@ -1,9 +1,10 @@
-use diesel::backend::Backend;
-use diesel::connection::{SimpleConnection, TransactionManager};
-use diesel::deserialize::QueryableByName;
 use diesel::prelude::*;
 use diesel::query_builder::{AsQuery, QueryFragment, QueryId};
-use diesel::sql_types::HasSqlType;
+use diesel::{backend::Backend, expression::QueryMetadata};
+use diesel::{
+    connection::{SimpleConnection, TransactionManager},
+    deserialize::FromSqlRow,
+};
 use std::time::Duration;
 
 /// A log mode which determines the type of logging connection is established.
@@ -103,44 +104,24 @@ where
         }
     }
 
-    fn query_by_index<T, U>(&self, source: T) -> QueryResult<Vec<U>>
+    fn load<T, U>(&self, source: T) -> QueryResult<Vec<U>>
     where
         T: AsQuery,
         T::Query: QueryFragment<Self::Backend> + QueryId,
-        Self::Backend: HasSqlType<T::SqlType>,
-        U: Queryable<T::SqlType, Self::Backend>,
+        U: FromSqlRow<T::SqlType, Self::Backend>,
+        Self::Backend: QueryMetadata<T::SqlType>,
     {
         let query = source.as_query();
 
         if self.log_mode.do_not_log() {
-            self.conn.query_by_index(query)
+            self.conn.load(query)
         } else {
             let debug_query = diesel::debug_query::<Self::Backend, _>(&query).to_string();
 
             let time_utc = chrono::Utc::now();
             let start_time = std::time::Instant::now();
 
-            let result = self.conn.query_by_index(query);
-            let duration = start_time.elapsed();
-
-            log_query(&debug_query, duration, time_utc, self.log_mode);
-            result
-        }
-    }
-
-    fn query_by_name<T, U>(&self, source: &T) -> QueryResult<Vec<U>>
-    where
-        T: QueryFragment<Self::Backend> + QueryId,
-        U: QueryableByName<Self::Backend>,
-    {
-        if self.log_mode.do_not_log() {
-            self.conn.query_by_name(source)
-        } else {
-            let debug_query = diesel::debug_query::<Self::Backend, _>(&source).to_string();
-
-            let time_utc = chrono::Utc::now();
-            let start_time = std::time::Instant::now();
-            let result = self.conn.query_by_name(source);
+            let result = self.conn.load(query);
             let duration = start_time.elapsed();
 
             log_query(&debug_query, duration, time_utc, self.log_mode);
