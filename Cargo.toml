@@ -19,7 +19,7 @@ edition = "2018"
 maintenance = { status = "as-is" }
 
 [dependencies]
-log = "0.4.1"
+tracing = "0.1"
 chrono = "0.4.11"
 
 [dependencies.diesel]
