@@ -89,6 +89,7 @@ where
         Ok(LoggingConnection { conn, log_mode })
     }
 
+    #[tracing::instrument(skip(self))]
     fn execute(&self, query: &str) -> QueryResult<usize> {
         if self.log_mode.do_not_log() {
             self.conn.execute(query)
@@ -99,11 +100,12 @@ where
             let result = self.conn.execute(query);
             let duration = start_time.elapsed();
 
-            log_query(query, duration, time_utc, self.log_mode);
+            log_query(query, duration, time_utc, self.log_mode, result.as_ref().map(|_| 1).unwrap_or(0));
             result
         }
     }
 
+    #[tracing::instrument(skip(self, source))]
     fn load<T, U>(&self, source: T) -> QueryResult<Vec<U>>
     where
         T: AsQuery,
@@ -124,11 +126,12 @@ where
             let result = self.conn.load(query);
             let duration = start_time.elapsed();
 
-            log_query(&debug_query, duration, time_utc, self.log_mode);
+            log_query(&debug_query, duration, time_utc, self.log_mode, result.as_ref().map(|r| r.len()).unwrap_or(0));
             result
         }
     }
 
+    #[tracing::instrument(skip(self, source))]
     fn execute_returning_count<T>(&self, source: &T) -> QueryResult<usize>
     where
         T: QueryFragment<Self::Backend> + QueryId,
@@ -144,7 +147,7 @@ where
             let result = self.conn.execute_returning_count(source);
             let duration = start_time.elapsed();
 
-            log_query(&debug_query, duration, time_utc, self.log_mode);
+            log_query(&debug_query, duration, time_utc, self.log_mode, result.as_ref().map(|_| 1).unwrap_or(0));
             result
         }
     }
@@ -199,6 +202,7 @@ fn log_query(
     duration: Duration,
     start_time: chrono::DateTime<chrono::Utc>,
     db_log_mode: DbLogMode,
+    entries_loaded: usize,
 ) {
     use std::borrow::Cow;
 
@@ -215,30 +219,31 @@ fn log_query(
     match db_log_mode {
         DbLogMode::Standard => {
             if duration.as_secs() >= 5 {
-                log::warn!(
+                tracing::warn!(
                     "Slow query ran in {:.2} seconds: {}",
                     duration_to_secs(duration),
                     query
                 );
             } else if duration.as_secs() >= 1 {
-                log::info!(
+                tracing::info!(
                     "Slow query ran in {:.2} seconds: {}",
                     duration_to_secs(duration),
                     query
                 );
             } else {
-                log::debug!("Query ran in {:.1} ms: {}", duration_to_ms(duration), query);
+                tracing::debug!("Query ran in {:.1} ms: {}", duration_to_ms(duration), query);
             }
         }
         DbLogMode::Verbose => {
             if duration.as_secs() >= 1 {
-                log::warn!(
+                tracing::warn!(
+                    return_count = entries_loaded,
                     "Slow query ran in {:.2} seconds: {}",
                     duration_to_secs(duration),
-                    query
+                    query,
                 );
             } else {
-                log::warn!("Query ran in {:.1} ms: {}", duration_to_ms(duration), query);
+                tracing::warn!(return_count = entries_loaded, "Query ran in {:.1} ms: {}", duration_to_ms(duration), query);
             }
         }
         DbLogMode::Excessive | DbLogMode::ExcessiveMini => {
